@@ -26,14 +26,15 @@ function postRandomTweet() {
     }
   });
 }
+postRandomTweet();
 
-// Listen for mentions
-const stream = bot.stream("statuses/filter", { track: "@WhatToDoChub" });
+// // Listen for mentions
+// const stream = bot.stream("statuses/filter", { track: "@WhatToDoChub" });
 
-stream.on("tweet", (tweet) => {
-  // Ignore tweets by self
-  if (tweet.user.screen_name !== "@WhatToDoChub") {
-    // Reply to the mention with a random tweet
-    postRandomTweet();
-  }
-});
+// stream.on("tweet", (tweet) => {
+//   // Ignore tweets by self
+//   if (tweet.user.screen_name !== "@WhatToDoChub") {
+//     // Reply to the mention with a random tweet
+//     postRandomTweet();
+//   }
+// });
