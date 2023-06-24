@@ -1,40 +1,56 @@
-const Twit = require("twit");
+require("dotenv").config({ path: __dirname + "/.env" });
+const { twitterClient } = require("./twitterClient.js");
+const CronJob = require("cron").CronJob;
+const express = require("express");
 const fs = require("fs");
-require("dotenv").config();
 
-// Load your Twitter API keys from a .env file
-const bot = new Twit({
-  consumer_key: process.env.TWITTER_CONSUMER_KEY,
-  consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
-  access_token: process.env.TWITTER_ACCESS_TOKEN,
-  access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+const app = express();
+const port = process.env.PORT || 4000;
+
+app.listen(port, () => {
+  console.log(`Listening on port ${port}`);
 });
 
-// Load the tweets from the file
-const tweets = fs.readFileSync("tweets.txt", "utf8").split("\n");
+const tweet = async (text) => {
+  try {
+    await twitterClient.v2.tweet(text);
+  } catch (e) {
+    console.log(e);
+  }
+};
 
-// Function to post a random tweet from the file
-function postRandomTweet() {
-  const randomIndex = Math.floor(Math.random() * tweets.length);
-  const status = tweets[randomIndex];
+const replyToMention = async (tweetId, username) => {
+  try {
+    const tweets = fs.readFileSync("tweets.txt", "utf8").split("\n");
+    const randomIndex = Math.floor(Math.random() * tweets.length);
+    const status = tweets[randomIndex];
+    const response = await twitterClient.v2.tweet(`@${username} ${status}`, {
+      in_reply_to_tweet_id: tweetId,
+    });
+    console.log(`Replied to mention by ${username}: ${response.data.text}`);
+  } catch (e) {
+    console.log(e);
+  }
+};
 
-  bot.post("statuses/update", { status }, (err, data, response) => {
-    if (err) {
-      console.error("Error posting tweet:", err);
-    } else {
-      console.log("Tweet posted successfully!");
+const processMentions = async () => {
+  try {
+    const mentions = await twitterClient.v2.searchRecentTweets.all({
+      query: `to:${process.env.TWITTER_USERNAME}`,
+    });
+
+    for (const mention of mentions.data) {
+      const tweetId = mention.id;
+      const username = mention.author.username;
+      await replyToMention(tweetId, username);
     }
-  });
-}
-postRandomTweet();
+  } catch (e) {
+    console.log(e);
+  }
+};
 
-// // Listen for mentions
-// const stream = bot.stream("statuses/filter", { track: "@WhatToDoChub" });
+const cronMentions = new CronJob("* * * * *", async () => {
+  processMentions();
+});
 
-// stream.on("tweet", (tweet) => {
-//   // Ignore tweets by self
-//   if (tweet.user.screen_name !== "@WhatToDoChub") {
-//     // Reply to the mention with a random tweet
-//     postRandomTweet();
-//   }
-// });
+cronMentions.start();
